@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "node tools/server.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "build": "node tools/build.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
   }
 }
