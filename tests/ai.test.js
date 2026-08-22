@@ -1,0 +1,5 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import { KalahGame } from '../js/core/game.js'; import { AI_DIFFICULTIES, chooseMove } from '../js/ai/ai.js';
+test('all four AIs return legal moves and random is deterministic with injected RNG', () => { const game = new KalahGame(); for (const difficulty of AI_DIFFICULTIES) assert.ok(game.getLegalMoves().includes(chooseMove(game,difficulty,()=>0))); assert.equal(chooseMove(game,'random',()=>.99),5); });
+test('easy prioritizes an immediate store finish', () => { const game = new KalahGame(); assert.equal(chooseMove(game,'easy',()=>0),0); });
+test('hard and advanced do not mutate the analyzed game and handle one move or game over', () => { const game = new KalahGame(); const snapshot = game.toJSON(); chooseMove(game,'hard'); chooseMove(game,'advanced'); assert.deepEqual(game.toJSON(),snapshot); game.board = [0,0,0,0,0,1,66,0,0,0,0,0,0,5]; assert.equal(chooseMove(game,'advanced'),5); game.resign(1); assert.equal(chooseMove(game,'hard'),null); });
