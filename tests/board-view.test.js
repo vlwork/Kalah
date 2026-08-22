@@ -19,6 +19,14 @@ test('PvP starts oriented to startingPlayer and follows an ordinary turn transfe
   assert.equal(getBoardOrientation({ mode: 'pvp', currentPlayer: game.currentPlayer }), 2);
 });
 
+test('PvP also starts and rotates correctly when Player 2 is the selected first player', () => {
+  const game = new KalahGame({ startingPlayer: 2 });
+  assert.equal(getBoardOrientation({ mode: 'pvp', currentPlayer: game.currentPlayer }), 2);
+  game.makeMove(8);
+  assert.equal(game.currentPlayer, 1);
+  assert.equal(getBoardOrientation({ mode: 'pvp', currentPlayer: game.currentPlayer }), 1);
+});
+
 test('PvP extra turn retains orientation', () => {
   const game = new KalahGame({ startingPlayer: 1 });
   const result = game.makeMove(0);

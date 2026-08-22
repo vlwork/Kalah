@@ -1,5 +1,7 @@
 import { storeFor } from '../core/game.js';
 
+const COUNTER_KEYS = ['moves', 'captures', 'capturedStones', 'storeFinishes', 'extraTurns', 'maxCapture', 'maxExtraTurnStreak', 'finalStore'];
+
 export function createMatchStatistics() {
   return { players: { 1: counters(), 2: counters() }, recorded: false };
 }
@@ -22,7 +24,11 @@ export function finaliseMatch(stats, game) {
 }
 export function validateStatistics(stats) {
   if (!stats || !stats.players || typeof stats.recorded !== 'boolean') return false;
-  return [1, 2].every((player) => Object.values(stats.players[player] || {}).every((value) => Number.isInteger(value) && value >= 0));
+  const keys = stats.recorded ? COUNTER_KEYS : [...COUNTER_KEYS, 'extraTurnStreak'];
+  return [1, 2].every((player) => {
+    const entry = stats.players[player];
+    return entry && keys.every((key) => Number.isInteger(entry[key]) && entry[key] >= 0);
+  });
 }
 export function makeHistoryEntry(match, game, stats) {
   return { matchId: match.matchId, completedAt: new Date().toISOString(), mode: match.mode, player1: match.player1, player2: match.player2, player1IsDefault: Boolean(match.player1IsDefault), player2IsDefault: Boolean(match.player2IsDefault), player2IsSystemAI: Boolean(match.player2IsSystemAI), aiDifficulty: match.aiDifficulty || null, startingPlayer: game.startingPlayer, winner: game.winner, draw: game.winner === 0, endReason: game.endReason, stores: [game.board[6], game.board[13]], players: structuredClone(stats.players) };

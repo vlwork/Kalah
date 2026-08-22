@@ -16,11 +16,11 @@ export function clearSlot(adapter, slot) { const slots = getSlots(adapter); if (
 export function createSave(match, game, statistics) { return { schemaVersion: SAVE_SCHEMA_VERSION, savedAt: new Date().toISOString(), game: game.toJSON(), match: structuredClone(match), statistics: structuredClone(statistics) }; }
 export function validateSave(save) {
   try {
-    if (!save || save.schemaVersion !== SAVE_SCHEMA_VERSION || typeof save.savedAt !== 'string' || !save.match || !['pvp', 'ai'].includes(save.match.mode) || typeof save.match.player1 !== 'string' || typeof save.match.player2 !== 'string' || !validateStatistics(save.statistics)) return null;
+    if (!save || save.schemaVersion !== SAVE_SCHEMA_VERSION || typeof save.savedAt !== 'string' || !validMatch(save.match) || !validateStatistics(save.statistics)) return null;
     KalahGame.fromJSON(save.game); return structuredClone(save);
   } catch { return null; }
 }
-export function getHistory(adapter) { const value = parse(adapter, STATS_KEY, []); return Array.isArray(value) ? value.filter((entry) => entry && typeof entry.matchId === 'string') : []; }
+export function getHistory(adapter) { const value = parse(adapter, STATS_KEY, []); return Array.isArray(value) ? value.filter(validHistoryEntry) : []; }
 export function recordHistory(adapter, entry) { const history = getHistory(adapter); if (!history.some((item) => item.matchId === entry.matchId)) { history.unshift(entry); write(adapter, STATS_KEY, history); } return history; }
 export function getSettings(adapter) {
   return normalizeSettings(parse(adapter, SETTINGS_KEY, DEFAULT_SETTINGS));
@@ -31,4 +31,19 @@ function normalizeSettings(value) {
     soundEnabled: typeof value?.soundEnabled === 'boolean' ? value.soundEnabled : DEFAULT_SETTINGS.soundEnabled,
     volume: Number.isFinite(value?.volume) ? Math.round(Math.min(100, Math.max(0, value.volume))) : DEFAULT_SETTINGS.volume,
   };
+}
+function validMatch(match) {
+  if (!match || !['pvp', 'ai'].includes(match.mode) || typeof match.matchId !== 'string' || !match.matchId
+    || ![1, 2].includes(match.humanPlayer) || ![1, 2].includes(match.aiPlayer)
+    || match.humanPlayer === match.aiPlayer || typeof match.player1 !== 'string' || typeof match.player2 !== 'string') return false;
+  if (match.mode === 'ai') return ['random', 'easy', 'hard', 'advanced'].includes(match.aiDifficulty) && match.humanPlayer === 1 && match.aiPlayer === 2;
+  return match.aiDifficulty === null && !match.player2IsSystemAI;
+}
+function validHistoryEntry(entry) {
+  const counters = ['moves', 'captures', 'capturedStones', 'storeFinishes', 'extraTurns', 'maxCapture', 'maxExtraTurnStreak', 'finalStore'];
+  return Boolean(entry && typeof entry.matchId === 'string' && entry.matchId && typeof entry.completedAt === 'string'
+    && ['pvp', 'ai'].includes(entry.mode) && typeof entry.player1 === 'string' && typeof entry.player2 === 'string'
+    && [0, 1, 2].includes(entry.winner) && typeof entry.draw === 'boolean' && ['emptySide', 'resign'].includes(entry.endReason)
+    && Array.isArray(entry.stores) && entry.stores.length === 2 && entry.stores.every((value) => Number.isInteger(value) && value >= 0)
+    && [1, 2].every((player) => counters.every((key) => Number.isInteger(entry.players?.[player]?.[key]) && entry.players[player][key] >= 0)));
 }

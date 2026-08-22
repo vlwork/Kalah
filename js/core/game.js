@@ -123,7 +123,8 @@ export class KalahGame {
     if (!value || value.schemaVersion !== 1 || !validBoard(value.board) || ![1, 2].includes(value.currentPlayer) || ![1, 2].includes(value.startingPlayer)
       || typeof value.openingRestriction !== 'boolean' || typeof value.firstMoveCompleted !== 'boolean' || typeof value.gameOver !== 'boolean'
       || ![null, 0, 1, 2].includes(value.winner) || ![null, 'emptySide', 'resign'].includes(value.endReason)) throw new Error('Invalid game save');
-    if (value.gameOver !== Boolean(value.endReason) || (value.gameOver && value.winner === null)) throw new Error('Invalid finished game');
+    if (value.gameOver !== Boolean(value.endReason) || (value.gameOver && ![0, 1, 2].includes(value.winner))
+      || (!value.gameOver && (value.winner !== null || value.endReason !== null))) throw new Error('Invalid finished game');
     return new KalahGame(value);
   }
 }

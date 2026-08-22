@@ -47,6 +47,7 @@ function displayName(player) { return player === 1 ? match.player1 : match.playe
 function difficultyLabel(difficulty) { return text(difficulty === 'random' ? 'randomAI' : difficulty); }
 function aiNameFor(difficulty) { return `${text('aiName')} (${difficultyLabel(difficulty)})`; }
 function aiDisplayName() { return aiNameFor(match.aiDifficulty); }
+function endReasonLabel(reason) { return reason === 'emptySide' ? text('endEmptySide') : reason === 'resign' ? text('endResign') : reason; }
 function localizedStoredName(record, player) {
   if (player === 2 && (record.mode === 'ai' || record.player2IsSystemAI)) return aiNameFor(record.aiDifficulty);
   const key = player === 1 ? 'player1' : 'player2';
@@ -65,6 +66,7 @@ function beginSessionChange() {
 
 function applyLanguage() {
   document.documentElement.lang = i18n.language;
+  boardElement.setAttribute('aria-label', text('boardAria'));
   $('#language').value = i18n.language;
   document.querySelectorAll('[data-i18n]').forEach((element) => { element.textContent = text(element.dataset.i18n); });
   for (const player of [1, 2]) {
@@ -311,7 +313,8 @@ function showSlots() {
     else {
       const storedPlayer1 = localizedStoredName(save.match, 1); const storedPlayer2 = localizedStoredName(save.match, 2);
       const title = document.createElement('strong'); title.textContent = `${slot}. ${storedPlayer1} — ${storedPlayer2}`;
-      const description = document.createElement('p'); description.textContent = `${new Date(save.savedAt).toLocaleString()} · ${save.match.mode.toUpperCase()} · ${text('turn')}: ${save.game.currentPlayer === 1 ? storedPlayer1 : storedPlayer2} · ${save.game.board[6]}:${save.game.board[13]}`;
+      const difficulty = save.match.mode === 'ai' ? ` · ${text('difficulty')}: ${difficultyLabel(save.match.aiDifficulty)}` : '';
+      const description = document.createElement('p'); description.textContent = `${new Date(save.savedAt).toLocaleString()} · ${text(save.match.mode)}${difficulty} · ${text('turn')}: ${save.game.currentPlayer === 1 ? storedPlayer1 : storedPlayer2} · ${save.game.board[6]}:${save.game.board[13]}`;
       info.append(title, description);
     }
     const action = document.createElement('button'); action.textContent = save ? text('load') : text('empty'); action.disabled = !save;
@@ -377,8 +380,15 @@ function showStatistics() {
     }
     container.append(grid); const h = document.createElement('h3'); h.textContent = text('history'); container.append(h); const list = document.createElement('ul'); list.className = 'history';
     if (!history.length) { const li = document.createElement('li'); li.textContent = text('noHistory'); list.append(li); }
-    history.forEach((entry) => { const li = document.createElement('li'); const p1 = entry.players[1]; const p2 = entry.players[2]; li.textContent = `${new Date(entry.completedAt).toLocaleString()} — ${localizedStoredName(entry, 1)} / ${localizedStoredName(entry, 2)}: ${entry.stores[0]}:${entry.stores[1]} (${entry.endReason}). ${text('moves')}: ${p1.moves}/${p2.moves}; ${text('captures')}: ${p1.captures}/${p2.captures}; ${text('capturedStones')}: ${p1.capturedStones}/${p2.capturedStones}.`; list.append(li); });
+    history.forEach((entry) => { const li = document.createElement('li'); const p1 = entry.players[1]; const p2 = entry.players[2]; li.textContent = `${new Date(entry.completedAt).toLocaleString()} — ${localizedStoredName(entry, 1)} / ${localizedStoredName(entry, 2)}: ${entry.stores[0]}:${entry.stores[1]} (${endReasonLabel(entry.endReason)}). ${text('moves')}: ${p1.moves}/${p2.moves}; ${text('captures')}: ${p1.captures}/${p2.captures}; ${text('capturedStones')}: ${p1.capturedStones}/${p2.capturedStones}.`; list.append(li); });
     container.append(list);
+    const difficulties = Object.entries(totals.byDifficulty);
+    if (difficulties.length) {
+      const hDifficulty = document.createElement('h3'); hDifficulty.textContent = text('difficultyStats'); container.append(hDifficulty);
+      const difficultyList = document.createElement('ul'); difficultyList.className = 'history';
+      difficulties.forEach(([difficulty, value]) => { const li = document.createElement('li'); li.textContent = `${difficultyLabel(difficulty)}: ${value.games}; ${text('wins')}: ${value.wins}; ${text('losses')}: ${value.losses}; ${text('draws')}: ${value.draws}.`; difficultyList.append(li); });
+      container.append(difficultyList);
+    }
   });
 }
 
