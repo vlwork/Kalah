@@ -9,8 +9,11 @@
   <title>Kalah 1.0</title>
 </head>
 <body>
-  <header class="topbar"><h1>Kalah <span>1.0</span></h1><div class="top-actions"><label><span data-i18n="language">Язык</span><select id="language"><option value="ru">Русский</option><option value="en">English</option></select></label><button id="settings" data-i18n="settings">Настройки</button></div></header>
-  <main>
+  <header class="topbar">
+    <h1>Kalah <span>1.0</span></h1>
+    <div class="top-actions"><label><span data-i18n="language">Язык</span><select id="language"><option value="ru">Русский</option><option value="en">English</option></select></label><button id="settings" data-i18n="settings">Настройки</button></div>
+  </header>
+  <main class="app-main">
     <section id="setup" class="panel setup">
       <h2 data-i18n="newGame">Новая игра</h2>
       <div class="form-grid">
@@ -23,25 +26,25 @@
       </div>
       <button id="start" class="primary" data-i18n="start">Начать игру</button>
     </section>
-    <section id="game-area" hidden>
-      <div class="game-head"><div id="status" role="status" aria-live="polite"></div><div id="score"></div></div>
-      <section class="board" aria-label="Kalah board">
-        <div id="top-store" class="store top-store">
+    <section id="game-area" class="game-screen" hidden>
+      <div class="game-head game-summary"><div id="status" class="turn-status" role="status" aria-live="polite" data-effect-anchor="turn"></div><div id="score" class="scoreline"></div></div>
+      <section class="board" aria-label="Kalah board" data-animation-surface="board">
+        <div id="top-store" class="store top-store" data-effect-anchor="store">
           <div class="store-meta"><span id="top-store-name"></span><strong id="top-store-count">0</strong></div>
           <div id="top-store-seeds" class="seed-cloud store-seeds" aria-hidden="true"></div>
           <button id="top-resign" class="resign-button danger" hidden></button>
         </div>
-        <div class="pit-columns"><div id="left-pits" class="pits left"></div><div id="right-pits" class="pits right"></div></div>
-        <div id="bottom-store" class="store bottom-store">
+        <div class="pit-columns board-grid"><div id="left-pits" class="pits left"></div><div id="right-pits" class="pits right"></div></div>
+        <div id="bottom-store" class="store bottom-store" data-effect-anchor="store">
           <div class="store-meta"><span id="bottom-store-name"></span><strong id="bottom-store-count">0</strong></div>
           <div id="bottom-store-seeds" class="seed-cloud store-seeds" aria-hidden="true"></div>
           <button id="bottom-resign" class="resign-button danger" hidden></button>
         </div>
       </section>
-      <div class="actions"><button id="save" data-i18n="save">Сохранить</button><button id="load" data-i18n="load">Загрузить</button><button id="rules" data-i18n="rules">Правила</button><button id="statistics" data-i18n="statistics">Статистика</button><button id="new-game" data-i18n="newGame">Новая игра</button></div>
+      <div class="actions game-actions"><button id="save" data-i18n="save">Сохранить</button><button id="load" data-i18n="load">Загрузить</button><button id="rules" data-i18n="rules">Правила</button><button id="statistics" data-i18n="statistics">Статистика</button><button id="new-game" data-i18n="newGame">Новая игра</button></div>
     </section>
   </main>
-  <dialog id="modal"><section id="modal-content"></section><form method="dialog"><button data-i18n="close">Закрыть</button></form></dialog>
+  <dialog id="modal" class="app-dialog"><section id="modal-content"></section><form method="dialog"><button data-i18n="close">Закрыть</button></form></dialog>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
