@@ -6,7 +6,9 @@ import { aggregateHistory, createMatchStatistics, finaliseMatch, makeHistoryEntr
 import { getBoardOrientation, getBoardView } from './ui/board-view.js';
 import { createDefaultNameState, isKnownDefaultName, localizeDefaultName, setCustomName } from './ui/name-state.js';
 import { AiTurnController } from './ui/ai-turn-controller.js';
-import { getSowPath, getSowStepDelay } from './ui/move-animation.js';
+import { AiResignationController, createAiResignationState } from './ui/ai-resignation.js';
+import { BoardAnimator, DomBoardAnimationView, getSowPath } from './ui/move-animation.js';
+import { createResultPresentation, ResultDialogController } from './ui/result-dialog.js';
 import { restoreRuntimeSnapshot, RuntimeLifecycle } from './ui/runtime-session.js';
 import { AudioManager, AUDIO_EVENTS } from './audio/audio-manager.js';
 import { WebAudioEngine } from './audio/web-audio-engine.js';
@@ -14,11 +16,16 @@ import { WebAudioEngine } from './audio/web-audio-engine.js';
 const $ = (selector) => document.querySelector(selector);
 const i18n = createI18n(localStorage.getItem('kalah:v1:language') || 'ru');
 const storage = new BrowserAdapter();
-const storedAudioSettings = getSettings(storage);
-const audio = new AudioManager(new WebAudioEngine(), { enabled: storedAudioSettings.soundEnabled, volume: storedAudioSettings.volume / 100 });
+const storedSettings = getSettings(storage);
+const audio = new AudioManager(new WebAudioEngine(), { enabled: storedSettings.soundEnabled, volume: storedSettings.volume / 100 });
+const animationSettings = {
+  animationEnabled: storedSettings.animationEnabled,
+  animationSpeed: storedSettings.animationSpeed,
+};
 const mode = $('#mode');
 const modal = $('#modal');
 const modalContent = $('#modal-content');
+const modalAction = $('#modal-action');
 const boardElement = $('.board');
 const nameFields = {
   1: createDefaultNameState('player1', i18n.language),
@@ -31,10 +38,30 @@ let renderedOrientation = null;
 let uiAnimating = false;
 let animatedOrientation = null;
 const lifecycle = new RuntimeLifecycle();
+const aiResignation = new AiResignationController({ random: Math.random });
 const aiTurns = new AiTurnController({
   getSessionId: () => match?.matchId ?? null,
   canRun: () => Boolean(game && match && !lifecycle.loading && match.mode === 'ai' && !game.gameOver && !uiAnimating && game.currentPlayer === aiPlayer()),
   runTurn: runAiTurn,
+});
+const boardAnimator = new BoardAnimator({
+  view: new DomBoardAnimationView({
+    boardElement,
+    statusElement: $('#status'),
+    resolveTarget: resolveBoardAnimationTarget,
+    renderFrame: renderBoardPosition,
+  }),
+  isGenerationCurrent: (generation) => lifecycle.isCurrent(generation),
+  reducedMotion: () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false,
+  getAnimationSettings: () => ({ ...animationSettings }),
+});
+const resultDialog = new ResultDialogController({
+  dialog: modal,
+  content: modalContent,
+  actionButton: modalAction,
+  isCurrent: (generation) => lifecycle.isCurrent(generation),
+  getMatchId: () => match?.matchId ?? null,
+  fallbackFocus: () => $('#new-game'),
 });
 
 function text(key, parameters) { return i18n.t(key, parameters); }
@@ -60,6 +87,8 @@ function localizedStoredName(record, player) {
 function beginSessionChange() {
   lifecycle.beginReplacement();
   aiTurns.invalidate();
+  boardAnimator.cancel();
+  resultDialog.invalidate();
   uiAnimating = false;
   animatedOrientation = null;
 }
@@ -107,6 +136,7 @@ function startGame() {
     player2IsDefault: mode.value === 'pvp' && player2IsDefault,
     player2IsSystemAI: mode.value === 'ai',
     aiDifficulty: mode.value === 'ai' ? $('#difficulty').value : null,
+    aiResignation: mode.value === 'ai' ? createAiResignationState() : null,
   };
   if (match.mode === 'ai') match.player2 = aiDisplayName();
   game = new KalahGame({ startingPlayer: first, openingRestriction: $('#opening').checked });
@@ -136,52 +166,89 @@ async function performMove(pit, moveGeneration) {
     return;
   }
   recordMove(statistics, result);
+  aiResignation.observe(match, game);
   uiAnimating = true;
   animatedOrientation = moveOrientation;
-  await animateSow(before, pit, path, moveOrientation, moveGeneration, result);
+  const animation = await boardAnimator.animateMove({
+    generation: moveGeneration,
+    before,
+    source: pit,
+    path,
+    orientation: moveOrientation,
+    result,
+    finalBoard: game.board,
+    onLanding: (step, details) => audio.playStonePlacement(step, details),
+    onCapture: () => audio.play(AUDIO_EVENTS.CAPTURE),
+    onCanonicalRender: render,
+  });
+  if (!animation.completed || !lifecycle.isCurrent(moveGeneration)) return;
+
+  completeIfNeeded();
+  animatedOrientation = null;
+  if (result.gameOver) {
+    render();
+    await boardAnimator.animateResult({
+      generation: moveGeneration,
+      kind: resultAnimationKind(result.winner),
+      timing: animation.timing,
+      onStart: () => audio.playMoveOutcome({ ...result, captureOccurred: false }, match),
+    });
+    if (!lifecycle.isCurrent(moveGeneration)) return;
+    showResultDialog(moveGeneration, match.matchId);
+  } else {
+    const transitionType = result.extraTurn ? 'extra-turn' : match.mode === 'pvp' ? 'turn' : 'status';
+    await boardAnimator.animatePostMove({
+      generation: moveGeneration,
+      type: transitionType,
+      label: result.extraTurn ? text('extraTurn') : '',
+      timing: animation.timing,
+      onTransition: render,
+    });
+  }
   if (!lifecycle.isCurrent(moveGeneration)) return;
   uiAnimating = false;
-  animatedOrientation = null;
-  audio.playMoveOutcome(result, match);
-  completeIfNeeded();
   render();
   scheduleAiIfNeeded();
 }
 
 async function runAiTurn({ sessionId }) {
   if (!game || !match || match.matchId !== sessionId || match.mode !== 'ai' || game.gameOver || game.currentPlayer !== aiPlayer()) return;
+  if (aiResignation.shouldResignBeforeMove(match, game)) {
+    await resignAi(lifecycle.capture(), sessionId);
+    return;
+  }
   const pit = chooseMove(game, match.aiDifficulty);
   if (pit === null) return;
   await performMove(pit, lifecycle.capture());
+}
+
+async function resignAi(generation, sessionId) {
+  if (!lifecycle.isCurrent(generation) || !game || !match || match.matchId !== sessionId || game.gameOver || match.mode !== 'ai') return;
+  const result = aiResignation.resign(match, game);
+  if (!result.success) return;
+  aiTurns.invalidate();
+  completeIfNeeded();
+  uiAnimating = true;
+  render();
+  const completed = await boardAnimator.animateResult({
+    generation,
+    kind: resultAnimationKind(game.winner),
+    onStart: () => audio.playResignOutcome(game, match),
+  });
+  if (!completed || !lifecycle.isCurrent(generation) || match.matchId !== sessionId) return;
+  uiAnimating = false;
+  render();
+  showResultDialog(generation, sessionId);
 }
 
 function scheduleAiIfNeeded() {
   aiTurns.schedule();
 }
 
-async function animateSow(before, pit, path, orientation, moveGeneration, result) {
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (path.length === 0) return;
-  if (reducedMotion) {
-    audio.playStonePlacement(path.length - 1, { ownStore: result.finishedInOwnStore });
-    return;
-  }
-  const frame = [...before];
-  const stepDelay = getSowStepDelay(path.length);
-  frame[pit] = 0;
-  renderBoardPosition(frame, orientation, false);
-  for (const [step, destination] of path.entries()) {
-    await animationDelay(stepDelay);
-    if (!lifecycle.isCurrent(moveGeneration)) return;
-    frame[destination] += 1;
-    renderBoardPosition(frame, orientation, false);
-    audio.playStonePlacement(step, { ownStore: result.finishedInOwnStore && step === path.length - 1 });
-  }
-  await animationDelay(stepDelay);
-}
-
-function animationDelay(delay) {
-  return new Promise((resolve) => setTimeout(resolve, delay));
+function resultAnimationKind(winner) {
+  if (winner === 0) return 'draw';
+  if (match.mode === 'pvp') return 'neutral';
+  return winner === humanPlayer() ? 'victory' : 'defeat';
 }
 
 function completeIfNeeded() {
@@ -190,6 +257,15 @@ function completeIfNeeded() {
   finaliseMatch(statistics, game);
   recordHistory(storage, makeHistoryEntry(match, game, statistics));
   statistics.recorded = true;
+}
+
+function showResultDialog(generation, matchId) {
+  if (!game?.gameOver || !match || match.matchId !== matchId) return false;
+  return resultDialog.show({
+    generation,
+    matchId,
+    presentation: createResultPresentation({ game, match, text }),
+  });
 }
 
 function render() {
@@ -216,6 +292,16 @@ function renderBoardPosition(board, orientation, allowOrientationTransition) {
   }
   if (allowOrientationTransition) renderedOrientation = orientation;
   boardElement.dataset.orientation = String(orientation);
+}
+
+function resolveBoardAnimationTarget(index, orientation) {
+  const view = getBoardView(orientation);
+  if (index === view.topStore) return $('#top-store');
+  if (index === view.bottomStore) return $('#bottom-store');
+  const leftIndex = view.left.indexOf(index);
+  if (leftIndex >= 0) return $('#left-pits').children.item(leftIndex);
+  const rightIndex = view.right.indexOf(index);
+  return rightIndex >= 0 ? $('#right-pits').children.item(rightIndex) : null;
 }
 
 function renderPitColumn(selector, pits, board, orientation) {
@@ -275,15 +361,25 @@ function renderSeeds(container, count, position) {
   container.replaceChildren(fragment);
 }
 
-function resignPlayer(player) {
+async function resignPlayer(player) {
   if (!game || game.gameOver || !isHuman(player)) return;
   if (!confirm(text('resignConfirm', { name: displayName(player) }))) return;
   beginSessionChange();
   game.resign(player);
   lifecycle.finishReplacement();
-  audio.playResignOutcome(game, match);
+  const generation = lifecycle.capture();
   completeIfNeeded();
+  uiAnimating = true;
   render();
+  await boardAnimator.animateResult({
+    generation,
+    kind: resultAnimationKind(game.winner),
+    onStart: () => audio.playResignOutcome(game, match),
+  });
+  if (!lifecycle.isCurrent(generation)) return;
+  uiAnimating = false;
+  render();
+  showResultDialog(generation, match.matchId);
 }
 
 function hydrateLoadedMatch() {
@@ -298,6 +394,7 @@ function hydrateLoadedMatch() {
 }
 
 function openModal(title, renderContent) {
+  resultDialog.prepareStandard(text('close'));
   modalContent.replaceChildren();
   const h2 = document.createElement('h2');
   h2.textContent = title;
@@ -349,9 +446,13 @@ function saveGame() {
 }
 
 function showRules() { openModal(text('rules'), (container) => { const p = document.createElement('p'); p.textContent = text('helpText'); container.append(p); }); }
-function persistAudioSettings() {
+function persistApplicationSettings() {
   const settings = audio.getSettings();
-  saveSettings(storage, { soundEnabled: settings.enabled, volume: Math.round(settings.volume * 100) });
+  saveSettings(storage, {
+    soundEnabled: settings.enabled,
+    volume: Math.round(settings.volume * 100),
+    ...animationSettings,
+  });
 }
 function showSettings() {
   openModal(text('settings'), (container) => {
@@ -366,9 +467,38 @@ function showSettings() {
     const output = document.createElement('output'); output.value = `${volume.value}%`; output.textContent = `${volume.value}%`;
     volume.setAttribute('aria-label', text('volume'));
     volumeLabel.append(volumeText, volume, output);
-    enable.addEventListener('change', () => { audio.setEnabled(enable.checked); persistAudioSettings(); if (enable.checked) { audio.unlock(); audio.play(AUDIO_EVENTS.BUTTON_CLICK); } });
-    volume.addEventListener('input', () => { audio.setVolume(Number(volume.value) / 100); output.value = `${volume.value}%`; output.textContent = `${volume.value}%`; persistAudioSettings(); });
-    container.append(heading, enableLabel, volumeLabel);
+    const animationHeading = document.createElement('h3'); animationHeading.textContent = text('animation');
+    const animationLabel = document.createElement('label'); animationLabel.className = 'settings-check settings-toggle';
+    const animationEnabled = document.createElement('input'); animationEnabled.type = 'checkbox'; animationEnabled.checked = animationSettings.animationEnabled;
+    const animationText = document.createElement('span'); animationText.textContent = text('animation');
+    const animationState = document.createElement('output'); animationState.className = 'settings-state';
+    const speedLabel = document.createElement('label'); speedLabel.className = 'settings-volume';
+    const speedText = document.createElement('span'); speedText.textContent = text('animationSpeed');
+    const speed = document.createElement('input'); speed.type = 'range'; speed.min = '25'; speed.max = '200'; speed.step = '5'; speed.value = String(Math.round(animationSettings.animationSpeed * 100));
+    const speedOutput = document.createElement('output'); speedOutput.value = `${speed.value}%`; speedOutput.textContent = `${speed.value}%`;
+    speed.setAttribute('aria-label', text('animationSpeed'));
+    const syncAnimationControls = () => {
+      animationState.value = animationEnabled.checked ? text('on') : text('off');
+      animationState.textContent = animationState.value;
+      speed.disabled = !animationEnabled.checked;
+    };
+    animationLabel.append(animationEnabled, animationText, animationState);
+    speedLabel.append(speedText, speed, speedOutput);
+    syncAnimationControls();
+    enable.addEventListener('change', () => { audio.setEnabled(enable.checked); persistApplicationSettings(); if (enable.checked) { audio.unlock(); audio.play(AUDIO_EVENTS.BUTTON_CLICK); } });
+    volume.addEventListener('input', () => { audio.setVolume(Number(volume.value) / 100); output.value = `${volume.value}%`; output.textContent = `${volume.value}%`; persistApplicationSettings(); });
+    animationEnabled.addEventListener('change', () => {
+      animationSettings.animationEnabled = animationEnabled.checked;
+      syncAnimationControls();
+      persistApplicationSettings();
+    });
+    speed.addEventListener('input', () => {
+      animationSettings.animationSpeed = Number(speed.value) / 100;
+      speedOutput.value = `${speed.value}%`;
+      speedOutput.textContent = `${speed.value}%`;
+      persistApplicationSettings();
+    });
+    container.append(heading, enableLabel, volumeLabel, animationHeading, animationLabel, speedLabel);
   });
 }
 function showStatistics() {

@@ -25,11 +25,18 @@ test('RU and EN have matching translation keys', () => {
   assert.ok(Object.values(translations.ru).every(Boolean) && Object.values(translations.en).every(Boolean));
 });
 
-test('audio settings have backward-compatible defaults and persist globally', () => {
+test('application settings have backward-compatible defaults, clamping, and global persistence', () => {
   const adapter = new MemoryAdapter(); assert.deepEqual(getSettings(adapter), DEFAULT_SETTINGS);
-  saveSettings(adapter, { soundEnabled:false, volume:27 }); assert.deepEqual(getSettings(adapter), { soundEnabled:false, volume:27 });
+  assert.equal(DEFAULT_SETTINGS.animationEnabled, true); assert.equal(DEFAULT_SETTINGS.animationSpeed, 1);
+  saveSettings(adapter, { soundEnabled:false, volume:27 });
+  assert.deepEqual(getSettings(adapter), { soundEnabled:false, volume:27, animationEnabled:true, animationSpeed:1 });
+  saveSettings(adapter, { soundEnabled:true, volume:40, animationEnabled:false, animationSpeed:.55 });
+  assert.deepEqual(getSettings(adapter), { soundEnabled:true, volume:40, animationEnabled:false, animationSpeed:.55 });
+  adapter.set('kalah:v1:settings', JSON.stringify({ soundEnabled:false, volume:31 }));
+  assert.deepEqual(getSettings(adapter), { soundEnabled:false, volume:31, animationEnabled:true, animationSpeed:1 });
   adapter.set('kalah:v1:settings', JSON.stringify({ unrelated:true })); assert.deepEqual(getSettings(adapter), DEFAULT_SETTINGS);
-  saveSettings(adapter, { soundEnabled:true, volume:400 }); assert.deepEqual(getSettings(adapter), { soundEnabled:true, volume:100 });
+  saveSettings(adapter, { soundEnabled:true, volume:400, animationEnabled:true, animationSpeed:9 });
+  assert.deepEqual(getSettings(adapter), { soundEnabled:true, volume:100, animationEnabled:true, animationSpeed:2 });
 });
 
 test('Save and Load preserve complete match and unfinished-statistics state without restoring application settings', () => {
@@ -37,10 +44,12 @@ test('Save and Load preserve complete match and unfinished-statistics state with
   const game = new KalahGame({ startingPlayer:2, currentPlayer:2, openingRestriction:true });
   const statistics = createMatchStatistics(); statistics.players[1].moves = 3; statistics.players[1].extraTurns = 1; statistics.players[1].extraTurnStreak = 1;
   const saved = createSave({ ...match, matchId:'full-state', player1:'Иван', player2:'AI (Easy)' }, game, statistics);
-  saveSettings(adapter, { soundEnabled:false, volume:18 }); saveSlot(adapter, 3, saved);
+  saveSettings(adapter, { soundEnabled:false, volume:18, animationEnabled:false, animationSpeed:.75 }); saveSlot(adapter, 3, saved);
+  assert.equal('animationEnabled' in saved, false); assert.equal('animationSpeed' in saved, false);
+  assert.equal('animationEnabled' in saved.match, false); assert.equal('animationSpeed' in saved.game, false);
   const restored = restoreRuntimeSnapshot(loadSlot(adapter, 3));
   assert.deepEqual(restored.game.toJSON(), game.toJSON()); assert.deepEqual(restored.match, saved.match); assert.deepEqual(restored.statistics, statistics);
-  assert.deepEqual(getSettings(adapter), { soundEnabled:false, volume:18 });
+  assert.deepEqual(getSettings(adapter), { soundEnabled:false, volume:18, animationEnabled:false, animationSpeed:.75 });
 });
 
 test('the actual first player and opening restriction survive Save and Load without reselection', () => {

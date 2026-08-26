@@ -187,7 +187,7 @@ button:disabled { cursor: not-allowed; opacity: .56; }
   border: 1px solid rgb(228 209 151 / .13);
   border-radius: calc(clamp(20px, 3vw, 34px) - 7px);
 }
-.board.orientation-change { animation: orientation-fade .18s ease; }
+.board.orientation-change { animation: orientation-fade var(--orientation-duration, 180ms) ease; }
 .pit-columns {
   min-width: 0;
   min-height: 0;
@@ -340,11 +340,19 @@ dialog > form { position: sticky; bottom: 0; display: flex; justify-content: fle
 .slot { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 11px 0; border-top: 1px solid #527568; }
 .slot > div { min-width: 0; overflow-wrap: anywhere; }
 .slot p { margin: 3px 0; color: var(--muted); font-size: .88rem; }
-.settings-check { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.settings-check { display: flex; align-items: center; gap: 10px; min-height: var(--control-height); margin: 12px 0; }
 .settings-check input { width: 22px; height: 22px; min-height: 22px; accent-color: var(--accent); }
+.settings-check .settings-state { margin-left: auto; color: var(--accent); font-weight: 750; }
+.settings-toggle { padding-inline: 2px; }
 .settings-volume { display: grid; grid-template-columns: auto minmax(120px, 1fr) 4ch; align-items: center; gap: 12px; }
 .settings-volume input { min-height: var(--control-height); padding: 0; accent-color: var(--accent); }
+.settings-volume input:disabled { opacity: .5; }
 .settings-volume output { text-align: right; color: var(--accent); font-weight: 750; }
+.result-detail { margin: 0 0 16px; color: var(--muted); font-size: 1.05rem; }
+.result-score { display: grid; gap: 8px; margin: 0; }
+.result-score > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 11px 13px; border: 1px solid rgb(90 124 111 / .38); border-radius: 10px; background: #102d24; }
+.result-score dt { min-width: 0; overflow-wrap: anywhere; }
+.result-score dd { margin: 0; color: var(--accent); font-size: 1.25rem; font-weight: 800; }
 .stats-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .stat { min-width: 0; padding: 11px; border: 1px solid rgb(90 124 111 / .35); border-radius: 10px; background: #102d24; overflow-wrap: anywhere; }
 .stat b { display: block; color: var(--accent); font-size: 1.2rem; }
@@ -353,6 +361,135 @@ dialog > form { position: sticky; bottom: 0; display: flex; justify-content: fle
 .history li { margin: .55rem 0; overflow-wrap: anywhere; }
 
 @keyframes orientation-fade { 50% { opacity: .65; transform: scale(.99); } }
+
+/* Move presentation is isolated from the board layout and game-state rendering. */
+.board.is-animating { cursor: progress; }
+.animation-overlay {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.board-animation-overlay {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: visible;
+  pointer-events: none;
+}
+.moving-stone {
+  --move-x: 0px;
+  --move-y: 0px;
+  --move-duration: 150ms;
+  --move-delay: 0ms;
+  position: absolute;
+  width: clamp(18px, 2.1vw, 27px);
+  height: clamp(17px, 2vw, 25px);
+  border: 1px solid rgb(255 246 211 / .22);
+  border-radius: 48% 52% 45% 55% / 54% 44% 56% 46%;
+  box-shadow: inset 1px 1px 1px rgb(255 255 255 / .22), 0 5px 8px rgb(0 0 0 / .34);
+  opacity: .96;
+  transform: translate(-50%, -50%) translate3d(0, 0, 0) scale(1.04);
+  transition: transform var(--move-duration) cubic-bezier(.3, .7, .35, 1), opacity var(--move-duration) ease;
+  transition-delay: var(--move-delay);
+  will-change: transform, opacity;
+}
+.moving-stone.in-flight {
+  opacity: .88;
+  transform: translate(-50%, -50%) translate3d(var(--move-x), var(--move-y), 0) scale(.9);
+}
+.moving-stone.moving-sow {
+  width: clamp(22px, 2.2vw, 34px);
+  height: clamp(21px, 2.05vw, 32px);
+  border-color: rgb(255 247 211 / .82);
+  box-shadow: inset 1px 1px 2px rgb(255 255 255 / .42), 0 5px 9px rgb(0 0 0 / .68), 0 0 0 1px rgb(16 31 25 / .58);
+  opacity: 1;
+  animation: none;
+  transform: translate(-50%, -50%) translate3d(0, 0, 0) scale(1.02);
+  transition: transform var(--move-duration) cubic-bezier(.22, .61, .36, 1);
+  will-change: transform;
+}
+.moving-stone.moving-sow.in-flight {
+  opacity: 1;
+  animation: none;
+  transform: translate(-50%, -50%) translate3d(var(--move-x), var(--move-y), 0) scale(1.02);
+}
+.moving-capture { box-shadow: inset 1px 1px 1px rgb(255 255 255 / .25), 0 0 0 2px rgb(232 189 98 / .28), 0 5px 8px rgb(0 0 0 / .32); }
+.moving-collection { opacity: .82; }
+.moving-stone.tone-0, .result-particle.tone-0 { background: #d9a83c; }
+.moving-stone.tone-1, .result-particle.tone-1 { background: #c9852d; }
+.moving-stone.tone-2, .result-particle.tone-2 { background: #c9ae72; }
+.moving-stone.tone-3, .result-particle.tone-3 { background: #9d984c; }
+.moving-stone.tone-4, .result-particle.tone-4 { background: #b67b4c; }
+.moving-stone.tone-5, .result-particle.tone-5 { background: #d0a45e; }
+.pickup-pulse { animation: pit-pickup var(--pickup-duration, 180ms) ease-out; }
+.pit.view-own.landing-pulse { animation: pit-landing-own var(--landing-duration, 150ms) ease-out; }
+.pit.view-opponent.landing-pulse { animation: pit-landing-opponent var(--landing-duration, 150ms) ease-out; }
+.store-pulse { animation: store-landing var(--store-duration, 280ms) ease-out; }
+.capture-source { animation: capture-source var(--capture-source-duration, 280ms) ease-out; }
+.capture-store-pulse { animation: capture-store var(--capture-store-duration, 340ms) ease-out; }
+.seed.stone--just-landed { animation: stone-entrance var(--stone-entrance-duration, 130ms) cubic-bezier(.22, .61, .36, 1); }
+.animation-message {
+  position: absolute;
+  z-index: 9;
+  top: 50%;
+  left: 50%;
+  max-width: calc(100% - 32px);
+  padding: .55rem 1rem;
+  border: 1px solid rgb(255 224 154 / .58);
+  border-radius: 999px;
+  background: rgb(13 36 29 / .92);
+  color: #ffe4a1;
+  font-size: clamp(.9rem, 2vw, 1.08rem);
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: message-appear 140ms ease-out both;
+}
+.turn-status.extra-turn-pulse { animation: status-extra var(--status-extra-duration, 450ms) ease; }
+.turn-status.turn-transition-pulse { animation: status-turn var(--status-turn-duration, 280ms) ease; }
+.board.result-victory { animation: result-victory var(--result-duration, 680ms) ease-out; }
+.board.result-defeat { animation: result-defeat var(--result-duration, 680ms) ease-out; }
+.board.result-draw, .board.result-neutral { animation: result-neutral var(--result-duration, 680ms) ease-out; }
+.result-particle {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  opacity: 0;
+  animation: result-particle var(--result-particle-duration, 620ms) ease-out both;
+}
+.result-particle:nth-child(1) { --particle-x: -130px; --particle-y: -75px; animation-delay: var(--particle-delay-20, 20ms); }
+.result-particle:nth-child(2) { --particle-x: -70px; --particle-y: -120px; animation-delay: var(--particle-delay-60, 60ms); }
+.result-particle:nth-child(3) { --particle-x: 20px; --particle-y: -135px; animation-delay: var(--particle-delay-100, 100ms); }
+.result-particle:nth-child(4) { --particle-x: 105px; --particle-y: -95px; animation-delay: var(--particle-delay-40, 40ms); }
+.result-particle:nth-child(5) { --particle-x: 135px; --particle-y: -25px; animation-delay: var(--particle-delay-80, 80ms); }
+.result-particle:nth-child(6) { --particle-x: -115px; --particle-y: 12px; animation-delay: var(--particle-delay-120, 120ms); }
+
+@keyframes pit-pickup { 50% { box-shadow: inset 0 12px 23px rgb(0 0 0 / .42), 0 0 0 3px rgb(232 189 98 / .34); transform: scale(.98); } }
+@keyframes stone-entrance { from { opacity: .7; transform: scale(1.35); } to { opacity: 1; transform: scale(1); } }
+@keyframes pit-landing-own { 50% { border-color: #ffe8ad; box-shadow: inset 0 10px 20px rgb(255 224 154 / .18), inset 0 -3px 6px rgb(255 255 255 / .09), 0 0 0 2px rgb(232 189 98 / .4); transform: scale(1.02); } }
+@keyframes pit-landing-opponent { 50% { border-color: #b8c4d8; box-shadow: inset 0 10px 20px rgb(184 196 216 / .14), inset 0 -3px 6px rgb(255 255 255 / .08), 0 0 0 2px rgb(157 170 192 / .3); transform: scale(1.018); } }
+@keyframes store-landing { 50% { border-color: #ffe09a; box-shadow: inset 0 8px 18px rgb(0 0 0 / .3), 0 0 0 4px rgb(232 189 98 / .28); } }
+@keyframes capture-source { 50% { border-color: #e9c878; opacity: .76; transform: scale(.975); } }
+@keyframes capture-store { 50% { border-color: #ffe09a; box-shadow: inset 0 8px 18px rgb(0 0 0 / .3), 0 0 0 5px rgb(232 189 98 / .32); } }
+@keyframes message-appear { from { opacity: 0; transform: translate(-50%, -46%) scale(.98); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes status-extra { 50% { color: #ffe09a; transform: scale(1.025); } }
+@keyframes status-turn { 50% { opacity: .66; } }
+@keyframes result-victory { 45% { border-color: #f1ce76; box-shadow: inset 0 1px rgb(255 255 255 / .13), inset 0 -12px 28px rgb(0 0 0 / .2), 0 0 0 5px rgb(232 189 98 / .2), 0 18px 48px rgb(0 0 0 / .32); } }
+@keyframes result-defeat { 45% { border-color: #71809b; opacity: .82; } }
+@keyframes result-neutral { 45% { border-color: #9eb5aa; box-shadow: inset 0 1px rgb(255 255 255 / .13), inset 0 -12px 28px rgb(0 0 0 / .2), 0 0 0 4px rgb(158 181 170 / .16), 0 18px 48px rgb(0 0 0 / .32); } }
+@keyframes result-particle {
+  0% { opacity: 0; transform: translate3d(-50%, -50%, 0) scale(.7); }
+  30% { opacity: .9; }
+  100% { opacity: 0; transform: translate3d(var(--particle-x), var(--particle-y), 0) scale(1.15); }
+}
 
 @media (min-width: 900px) and (min-height: 650px) {
   .app-main { height: calc(100vh - var(--header-height)); height: calc(100dvh - var(--header-height)); overflow: hidden; }
@@ -376,6 +513,7 @@ dialog > form { position: sticky; bottom: 0; display: flex; justify-content: fle
   .pit { width: min(100%, 250px); }
   .pit .seed-cloud { max-width: 176px; }
   .store { min-height: 72px; padding-block: 10px; }
+  .moving-sow { width: clamp(26px, 2.2vw, 34px); height: clamp(25px, 2.05vw, 32px); }
 }
 
 @media (min-width: 641px) and (max-width: 899px) {
@@ -431,4 +569,5 @@ dialog > form { position: sticky; bottom: 0; display: flex; justify-content: fle
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
   .board.orientation-change { animation: none; }
+  .animation-overlay, .board-animation-overlay { display: none; }
 }

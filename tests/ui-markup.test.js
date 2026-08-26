@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const css = await readFile(new URL('../css/style.css', import.meta.url), 'utf8');
+const main = await readFile(new URL('../js/main.js', import.meta.url), 'utf8');
 
 test('production board markup has visual seed containers and no engine index labels', () => {
   assert.match(html, /top-store-seeds/);
@@ -51,10 +52,42 @@ test('game surface exposes neutral animation anchors without duplicating engine 
   assert.match(html, /id="left-pits"/); assert.match(html, /id="right-pits"/);
 });
 
+test('moving stones use an unclipped fixed viewport transport layer', () => {
+  const overlayRule = css.match(/\.board-animation-overlay\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(overlayRule, /position:\s*fixed/);
+  assert.match(overlayRule, /inset:\s*0/);
+  assert.match(overlayRule, /overflow:\s*visible/);
+  assert.match(overlayRule, /pointer-events:\s*none/);
+  assert.match(overlayRule, /z-index:\s*10000/);
+});
+
+test('moving sow stone keeps stable opacity and scale with transform-only travel', () => {
+  const startRule = css.match(/\.moving-stone\.moving-sow\s*\{([^}]*)\}/)?.[1] ?? '';
+  const flightRule = css.match(/\.moving-stone\.moving-sow\.in-flight\s*\{([^}]*)\}/)?.[1] ?? '';
+  assert.match(startRule, /opacity:\s*1/); assert.match(flightRule, /opacity:\s*1/);
+  assert.match(startRule, /animation:\s*none/); assert.match(flightRule, /animation:\s*none/);
+  assert.match(startRule, /transition:\s*transform\b/); assert.doesNotMatch(startRule, /transition:[^;]*opacity/);
+  assert.match(startRule, /scale\(1\.02\)/); assert.match(flightRule, /scale\(1\.02\)/);
+  assert.match(css, /\.seed\.stone--just-landed\s*\{/);
+});
+
+test('Settings exposes global animation toggle and a 25–200 percent speed control', () => {
+  assert.match(main, /animationEnabled\.type = 'checkbox'/);
+  assert.match(main, /speed\.min = '25'/); assert.match(main, /speed\.max = '200'/); assert.match(main, /speed\.step = '5'/);
+  assert.match(main, /getAnimationSettings:\s*\(\) => \(\{ \.\.\.animationSettings \}\)/);
+});
+
 test('all primary game and modal controls retain native button semantics', () => {
   for (const id of ['save', 'load', 'rules', 'statistics', 'new-game', 'settings', 'top-resign', 'bottom-resign']) {
     assert.match(html, new RegExp(`<button[^>]*id="${id}"`));
   }
   assert.match(html, /<dialog id="modal"/); assert.match(html, /<form method="dialog">/);
+  assert.match(html, /<button id="modal-action" type="button"/);
   assert.match(css, /:focus-visible/); assert.match(css, /prefers-reduced-motion:\s*reduce/);
+});
+
+test('reduced motion keeps the fixed extra-turn text visible', () => {
+  const reduced = css.match(/@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*)\}\s*$/)?.[1] ?? '';
+  assert.doesNotMatch(reduced, /\.animation-message\s*\{[^}]*display:\s*none/);
+  assert.match(css, /@keyframes message-appear[^}]*opacity:\s*0[\s\S]*opacity:\s*1/);
 });

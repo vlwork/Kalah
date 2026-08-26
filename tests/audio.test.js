@@ -62,6 +62,12 @@ test('PvAI routes victory and defeat using the configured human role', () => {
   assert.equal(defeat.engine.events[0].details.volume, 0.42);
 });
 
+test('AI resignation routes exactly one human-victory outcome sound', () => {
+  const { audio, engine } = manager();
+  audio.playResignOutcome({ winner:1 }, { mode:'ai', humanPlayer:1 });
+  assert.deepEqual(engine.events.map(({ event }) => event), ['victory']);
+});
+
 test('Load/render produce no events and stale animation generation cannot emit sound', () => {
   const { audio, engine } = manager(); const lifecycle = new RuntimeLifecycle(); const generation = lifecycle.capture();
   const oldStep = () => { if (lifecycle.isCurrent(generation)) audio.playStonePlacement(0); };
