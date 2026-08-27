@@ -1,45 +1,146 @@
-# Kalah 1.0
+[English] | [Русский](README.ru.md)
 
-Браузерная версия классической игры «Калах» на чистых HTML, CSS и ES-модулях. Проект не использует сторонние пакеты, UI-фреймворки или игровой движок.
+# Kalah
 
-## Запуск
+A cross-platform implementation of the classic Kalah board game.
 
-Требуется Node.js 18+.
+Developed by Researcher Universe Labs
 
-```text
-npm start
-```
+Version 1.0.0
 
-Откройте `http://localhost:8080`. Для запуска автоматических тестов:
+License: GPL-3.0-only
+
+## Overview
+
+Kalah is a digital implementation of the classic board game from the Mancala family. It is an independent project and is not an official version of any third-party product.
+
+The project focuses on a clean implementation of the rules, local player-versus-player matches, play against AI, saved games, statistics, and cross-platform use without a mandatory online service.
+
+## Features
+
+### Game
+
+- Standard Kalah board with 6 pits per player.
+- 6 stones per pit and 72 stones in total at the start of a match.
+- Captures, extra turns, and automatic collection when one side becomes empty.
+- Draws and player resignation.
+- Optional restriction preventing the opening move from ending directly in the current player's Kalah.
+
+### Modes and AI
+
+- Local PvP on one device.
+- PvAI with Random, Easy, Hard, and Advanced difficulty levels.
+- Hard searches several moves ahead.
+- Advanced uses a more defensive, opponent-aware evaluation. The AI is not presented as unbeatable.
+
+## Interface
+
+- Responsive interface for Windows desktop and Android portrait/mobile layouts.
+- Browser/PWA-compatible frontend.
+- Dynamic board orientation in PvP and a human-facing orientation in PvAI.
+- Russian and English localization.
+- Custom player names.
+- Natural-looking decorative stones with exact numeric counters.
+
+## Animations and audio
+
+- Animated stone sowing and landing feedback.
+- Capture effects, extra-turn notifications, and game-end effects.
+- Sound effects generated with the Web Audio API; no external soundtrack is required.
+- Sound enable/disable and volume controls.
+- Animation enable/disable and speed control from 25% to 200%.
+- Support for the `prefers-reduced-motion` user preference.
+
+## Save and load
+
+Kalah provides exactly 5 manual save slots. A save preserves the complete state of an unfinished match, including the current and first players, AI difficulty, statistics in progress, and other relevant match state. Application settings are stored separately from game saves.
+
+## Statistics
+
+Local match history keeps PvP and PvAI results separate and records the AI difficulty where applicable. Tracked values include wins, losses, draws, moves, captures, captured stones, extra turns, finishes in a Kalah, maximum capture, longest extra-turn streak, and final Kalah scores.
+
+## AI resignation
+
+In PvAI, the computer may resign when defeat has become mathematically inevitable. It does not necessarily resign immediately after such a position is reached.
+
+## Game results
+
+At the end of a match, the result view reports victory, defeat, draw, or resignation together with the final score.
+
+## Platforms
+
+| Platform | Status |
+| --- | --- |
+| Windows x64 | Supported; installer and portable executable. |
+| Android | Supported / testing; Android 7.0+ (API 24), ARM64 and ARMv7. |
+| Browser/PWA | Supported as the project frontend and local web version. |
+| Linux | Planned; build support is in progress. |
+| macOS | Planned. |
+| iOS | Not currently planned. |
+
+## Current build targets
+
+- Windows: x86_64, Tauri 2, and WebView2.
+- Android: minSdk 24, ARM64 (`arm64-v8a`), and ARMv7 (`armeabi-v7a`).
+
+## Technology
+
+- HTML
+- CSS
+- Vanilla JavaScript
+- Rust
+- Tauri 2
+- Web Audio API
+- Node.js test runner
+
+## Project architecture
+
+The project separates the Game Engine for rules and state from AI move selection, the UI and board view, the animation layer, storage, statistics, audio, and the Tauri application shell. Gameplay logic is kept separate from platform-specific UI and shell code.
+
+## Testing
+
+The current project state has 131 automated tests passing. Coverage includes game rules, AI, Save/Load, stale lifecycle protection, board orientation, statistics, audio, animations, AI resignation, the result dialog, localization, and storage.
+
+Run the test suite with:
 
 ```text
 npm test
 ```
 
-## Возможности 1.0
+## Quick start for developers
 
-- Единственная версия правил: 12 лунок по 6 камней, 72 камня всего.
-- Полный движок Kalah: посев с пропуском чужого калаха, дополнительные ходы, захват, сбор остатка, ничья, сдача и безопасная сериализация.
-- PvP на одном устройстве и PvAI; первый игрок — Player 1, Player 2 либо случайный.
-- Опциональное правило, запрещающее стартовый ход непосредственно в собственный калах.
-- Четыре AI: Random, Easy (один ход), Hard (minimax/alpha-beta, глубина 3), Advanced (defensive minimax/alpha-beta, глубина 4).
-- Вертикальная адаптивная доска, доступные с клавиатуры кнопки-лунки, RU/EN, Rules/Help.
-- Пять локальных save slots с метаданными, валидацией и точным продолжением игры.
-- История завершённых матчей, базовые и расширенные counters (ходы, захваты, камни захвата, окончания в калахе, дополнительные ходы, максимумы).
-- Базовый PWA manifest и service worker для offline cache локальных ресурсов.
-- Короткие синтезированные звуковые эффекты Web Audio без внешних аудиофайлов; глобальные Sound On/Off и громкость сохраняются локально.
+Clone the repository, then:
 
-## Структура
+```text
+npm install
+npm test
+npm start
+```
 
-- `js/core/game.js` — независимый от браузера игровой движок.
-- `js/ai/ai.js` — AI поверх клонированного Game Engine.
-- `js/statistics/` — counters матча и агрегация истории.
-- `js/storage/` — adapter storage, пять слотов и проверка формата сохранений.
-- `js/i18n/` — полный RU/EN словарь.
-- `js/audio/` — семантический Audio Manager и браузерный Web Audio синтезатор.
-- `js/main.js`, `index.html`, `css/style.css` — браузерный интерфейс.
-- `tests/` — тесты `node:test`; `tools/server.mjs` — минимальный статический сервер.
+Detailed platform build instructions will be provided separately.
 
-## Ограничения и дальнейшие платформы
+## Screenshots
 
-Это локальная браузерная/PWA-версия: нет сетевой игры, аккаунтов, облачных сохранений, аналитики или desktop packaging. Ядро, AI, статистика и storage abstraction не зависят от DOM, поэтому в будущем проект можно адаптировать для Windows, Linux, macOS и Android. iOS в 1.0 не входит.
+<!-- Screenshots will be added before the public release. -->
+
+## License
+
+Kalah is licensed under the GNU General Public License v3.0 only (GPL-3.0-only).
+
+Copyright © 2026 Researcher Universe Labs.
+
+You may use, study, modify, and distribute the software. Distributed derivative works must comply with GPL-3.0-only. See [LICENSE](LICENSE).
+
+## Contributions
+
+Contributions are welcome. Contribution guidelines will be added separately.
+
+## Support the project
+
+Kalah is free and open-source software. If you find the project useful and would like to support its continued development, voluntary donations are welcome.
+
+## Developer
+
+Researcher Universe Labs
+
+Copyright © 2026 Researcher Universe Labs

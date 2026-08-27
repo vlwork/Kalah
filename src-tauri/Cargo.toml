@@ -2,8 +2,8 @@
 name = "kalah"
 version = "1.0.0"
 description = "Kalah board game"
-authors = ["vl"]
-license = ""
+authors = ["Researcher Universe Labs"]
+license = "GPL-3.0-only"
 repository = ""
 edition = "2021"
 rust-version = "1.77.2"
