@@ -22,3 +22,7 @@ test('offline cache includes both audio modules', () => {
   assert.match(worker, /audio\/audio-manager\.js/);
   assert.match(worker, /audio\/web-audio-engine\.js/);
 });
+
+test('offline cache includes the app dialog module', () => {
+  assert.match(worker, /ui\/app-dialog\.js/);
+});

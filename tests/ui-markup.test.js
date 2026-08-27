@@ -86,6 +86,16 @@ test('all primary game and modal controls retain native button semantics', () =>
   assert.match(css, /:focus-visible/); assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
 
+test('app dialog uses one accessible responsive native modal surface', () => {
+  assert.equal((html.match(/id="app-dialog"/g) ?? []).length, 1);
+  assert.match(html, /<dialog id="app-dialog"[^>]*aria-labelledby="app-dialog-title"[^>]*aria-describedby="app-dialog-message"/);
+  assert.match(html, /<button id="app-dialog-cancel" type="button"/);
+  assert.match(html, /<button id="app-dialog-confirm" type="button"/);
+  assert.match(css, /\.app-confirm-dialog\s*\{[^}]*width:\s*min\(460px, calc\(100vw - 24px\)\)/);
+  assert.match(css, /safe-area-inset-left/); assert.match(css, /safe-area-inset-right/);
+  assert.match(css, /\.app-dialog-actions\s*\{[^}]*flex-wrap:\s*wrap/);
+});
+
 test('reduced motion keeps the fixed extra-turn text visible', () => {
   const reduced = css.match(/@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*)\}\s*$/)?.[1] ?? '';
   assert.doesNotMatch(reduced, /\.animation-message\s*\{[^}]*display:\s*none/);

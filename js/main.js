@@ -8,6 +8,7 @@ import { createDefaultNameState, isKnownDefaultName, localizeDefaultName, setCus
 import { AiTurnController } from './ui/ai-turn-controller.js';
 import { AiResignationController, createAiResignationState } from './ui/ai-resignation.js';
 import { BoardAnimator, DomBoardAnimationView, getSowPath } from './ui/move-animation.js';
+import { AppDialogController, runConfirmedAction } from './ui/app-dialog.js';
 import { createResultPresentation, ResultDialogController } from './ui/result-dialog.js';
 import { restoreRuntimeSnapshot, RuntimeLifecycle } from './ui/runtime-session.js';
 import { AudioManager, AUDIO_EVENTS } from './audio/audio-manager.js';
@@ -63,6 +64,15 @@ const resultDialog = new ResultDialogController({
   getMatchId: () => match?.matchId ?? null,
   fallbackFocus: () => $('#new-game'),
 });
+const appDialog = new AppDialogController({
+  dialog: $('#app-dialog'),
+  titleElement: $('#app-dialog-title'),
+  messageElement: $('#app-dialog-message'),
+  confirmButton: $('#app-dialog-confirm'),
+  cancelButton: $('#app-dialog-cancel'),
+  translate: (key, parameters) => text(key, parameters),
+  fallbackFocus: () => $('#new-game'),
+});
 
 function text(key, parameters) { return i18n.t(key, parameters); }
 function newId() { return globalThis.crypto?.randomUUID?.() || `match-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
@@ -88,9 +98,17 @@ function beginSessionChange() {
   lifecycle.beginReplacement();
   aiTurns.invalidate();
   boardAnimator.cancel();
+  appDialog.invalidate();
   resultDialog.invalidate();
   uiAnimating = false;
   animatedOrientation = null;
+}
+
+function discardGameSession() {
+  game = null;
+  match = null;
+  statistics = null;
+  renderedOrientation = null;
 }
 
 function applyLanguage() {
@@ -107,6 +125,7 @@ function applyLanguage() {
     if (match.mode === 'pvp' && match.player2IsDefault) match.player2 = text('player2');
     if (match.mode === 'ai') match.player2 = aiDisplayName();
   }
+  appDialog.refresh();
   render();
 }
 
@@ -116,8 +135,23 @@ function toggleMode() {
   $('#difficulty-wrap').hidden = !ai;
 }
 
-function startGame() {
-  if (game && !game.gameOver && !confirm(text('activeGame'))) return;
+function captureDialogContext() {
+  const generation = lifecycle.capture();
+  const matchId = match?.matchId ?? null;
+  return () => lifecycle.isCurrent(generation) && (match?.matchId ?? null) === matchId;
+}
+
+async function startGame() {
+  if (game && !game.gameOver) {
+    const isCurrent = captureDialogContext();
+    const accepted = await appDialog.warn({
+      titleKey: 'newGame',
+      messageKey: 'activeGame',
+      confirmLabelKey: 'startNewGame',
+      cancelLabelKey: 'cancel',
+    });
+    if (!accepted || !isCurrent()) return;
+  }
   beginSessionChange();
   const selected = $('#first').value;
   const first = selected === 'random' ? (Math.random() < .5 ? 1 : 2) : Number(selected);
@@ -363,7 +397,16 @@ function renderSeeds(container, count, position) {
 
 async function resignPlayer(player) {
   if (!game || game.gameOver || !isHuman(player)) return;
-  if (!confirm(text('resignConfirm', { name: displayName(player) }))) return;
+  const sessionId = match.matchId;
+  const isCurrent = captureDialogContext();
+  const accepted = await appDialog.warn({
+    titleKey: 'resign',
+    messageKey: 'resignConfirm',
+    messageParameters: { name: displayName(player) },
+    confirmLabelKey: 'resign',
+    cancelLabelKey: 'cancel',
+  });
+  if (!accepted || !isCurrent() || !game || game.gameOver || match?.matchId !== sessionId || !isHuman(player)) return;
   beginSessionChange();
   game.resign(player);
   lifecycle.finishReplacement();
@@ -440,7 +483,21 @@ function saveGame() {
     const row = document.createElement('div'); row.className = 'slot';
     const label = document.createElement('div'); label.textContent = `${slot}. ${save ? `${localizedStoredName(save.match, 1)} — ${localizedStoredName(save.match, 2)}` : text('empty')}`;
     const button = document.createElement('button'); button.textContent = save ? text('overwrite') : text('save');
-    button.addEventListener('click', () => { if (!save || confirm(`${text('overwrite')}?`)) { saveSlot(storage, slot, createSave(match, game, statistics)); modal.close(); $('#status').textContent = text('saved'); } });
+    button.addEventListener('click', async () => {
+      if (save) {
+        const isCurrent = captureDialogContext();
+        const accepted = await appDialog.warn({
+          titleKey: 'overwrite',
+          messageKey: 'overwriteConfirm',
+          confirmLabelKey: 'overwrite',
+          cancelLabelKey: 'cancel',
+        });
+        if (!accepted || !isCurrent()) return;
+      }
+      saveSlot(storage, slot, createSave(match, game, statistics));
+      modal.close();
+      $('#status').textContent = text('saved');
+    });
     row.append(label, button); container.append(row);
   }));
 }
@@ -522,6 +579,31 @@ function showStatistics() {
   });
 }
 
+async function showNewGameSetup() {
+  const openSetup = () => {
+    beginSessionChange();
+    discardGameSession();
+    $('#game-area').hidden = true;
+    $('#setup').hidden = false;
+    lifecycle.finishReplacement();
+  };
+  if (!game || game.gameOver) {
+    openSetup();
+    return;
+  }
+  const isCurrent = captureDialogContext();
+  await runConfirmedAction({
+    request: () => appDialog.warn({
+      titleKey: 'newGame',
+      messageKey: 'activeGame',
+      confirmLabelKey: 'startNewGame',
+      cancelLabelKey: 'cancel',
+    }),
+    isCurrent,
+    action: openSetup,
+  });
+}
+
 $('#player1').addEventListener('input', (event) => setCustomName(nameFields[1], event.target.value));
 $('#player2').addEventListener('input', (event) => setCustomName(nameFields[2], event.target.value));
 $('#language').addEventListener('change', (event) => { i18n.setLanguage(event.target.value); localStorage.setItem('kalah:v1:language', i18n.language); applyLanguage(); });
@@ -532,7 +614,7 @@ $('#load').addEventListener('click', showSlots);
 $('#rules').addEventListener('click', showRules);
 $('#statistics').addEventListener('click', showStatistics);
 $('#settings').addEventListener('click', showSettings);
-$('#new-game').addEventListener('click', () => { if (!game || game.gameOver || confirm(text('activeGame'))) { beginSessionChange(); $('#game-area').hidden = true; $('#setup').hidden = false; lifecycle.finishReplacement(); } });
+$('#new-game').addEventListener('click', showNewGameSetup);
 $('#top-resign').addEventListener('click', (event) => resignPlayer(Number(event.currentTarget.dataset.player)));
 $('#bottom-resign').addEventListener('click', (event) => resignPlayer(Number(event.currentTarget.dataset.player)));
 document.addEventListener('pointerdown', () => { audio.unlock(); }, { passive: true });

@@ -45,6 +45,16 @@
     </section>
   </main>
   <dialog id="modal" class="app-dialog"><section id="modal-content"></section><form method="dialog"><button id="modal-action" type="button" data-i18n="close">Закрыть</button></form></dialog>
+  <dialog id="app-dialog" class="app-dialog app-confirm-dialog" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
+    <section class="app-dialog-content">
+      <h2 id="app-dialog-title"></h2>
+      <p id="app-dialog-message"></p>
+    </section>
+    <div class="app-dialog-actions">
+      <button id="app-dialog-cancel" type="button"></button>
+      <button id="app-dialog-confirm" type="button"></button>
+    </div>
+  </dialog>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

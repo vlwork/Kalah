@@ -3,7 +3,7 @@ const ASSETS = [
   './', './index.html', './css/style.css', './js/main.js', './js/core/game.js', './js/ai/ai.js',
   './js/i18n/i18n.js', './js/i18n/translations.js', './js/storage/storage.js', './js/statistics/statistics.js',
   './js/ui/board-view.js', './js/ui/name-state.js', './js/ui/ai-turn-controller.js',
-  './js/ui/move-animation.js', './js/ui/runtime-session.js',
+  './js/ui/app-dialog.js', './js/ui/move-animation.js', './js/ui/runtime-session.js',
   './js/audio/audio-manager.js', './js/audio/web-audio-engine.js',
 ];
 

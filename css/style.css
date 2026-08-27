@@ -337,6 +337,18 @@ dialog::backdrop { background: rgb(4 15 12 / .78); }
 #modal-content h2 { margin: 0 0 16px; font: 700 clamp(1.35rem, 3vw, 1.9rem)/1.15 Georgia, serif; }
 #modal-content h3 { margin-bottom: 8px; }
 dialog > form { position: sticky; bottom: 0; display: flex; justify-content: flex-end; padding-top: 12px; background: linear-gradient(transparent, #173a30 28%); }
+.app-confirm-dialog {
+  width: min(460px, calc(100vw - 24px));
+  max-width: calc(100% - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)));
+  max-height: calc(100dvh - max(24px, env(safe-area-inset-top)) - max(24px, env(safe-area-inset-bottom)));
+  overflow-wrap: anywhere;
+}
+.app-confirm-dialog[data-variant="warning"] { border-color: #b97870; box-shadow: 0 24px 80px rgb(0 0 0 / .6), 0 0 0 1px rgb(232 189 98 / .18); }
+.app-dialog-content { min-width: 0; }
+.app-dialog-content h2 { margin: 0 0 12px; color: var(--accent); font: 700 clamp(1.35rem, 5vw, 1.8rem)/1.15 Georgia, serif; }
+.app-dialog-content p { margin: 0; color: var(--ink); font-size: 1.02rem; }
+.app-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding-top: 22px; }
+.app-dialog-actions button { min-width: min(140px, 100%); }
 .slot { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 11px 0; border-top: 1px solid #527568; }
 .slot > div { min-width: 0; overflow-wrap: anywhere; }
 .slot p { margin: 3px 0; color: var(--muted); font-size: .88rem; }
@@ -545,6 +557,9 @@ dialog > form { position: sticky; bottom: 0; display: flex; justify-content: fle
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .slot { grid-template-columns: minmax(0, 1fr) auto; }
   .slot > button:last-child { grid-column: 2; }
+  .app-dialog-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-dialog-actions button { width: 100%; min-width: 0; }
+  .app-dialog-actions button[hidden] + button { grid-column: 1 / -1; }
 }
 
 @media (max-width: 360px) {
