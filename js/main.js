@@ -13,6 +13,13 @@ import { createResultPresentation, ResultDialogController } from './ui/result-di
 import { restoreRuntimeSnapshot, RuntimeLifecycle } from './ui/runtime-session.js';
 import { AudioManager, AUDIO_EVENTS } from './audio/audio-manager.js';
 import { WebAudioEngine } from './audio/web-audio-engine.js';
+import { prepareServiceWorkerRuntime, registerBrowserServiceWorker } from './platform/service-worker-runtime.js';
+
+const serviceWorkerRuntime = await prepareServiceWorkerRuntime();
+if (serviceWorkerRuntime.reloadRequired) {
+  window.location.reload();
+  await new Promise(() => {});
+}
 
 const $ = (selector) => document.querySelector(selector);
 const i18n = createI18n(localStorage.getItem('kalah:v1:language') || 'ru');
@@ -624,14 +631,6 @@ document.addEventListener('click', (event) => {
   if (!button || button.disabled || button.matches('.pit, .resign-button')) return;
   audio.play(AUDIO_EVENTS.BUTTON_CLICK);
 });
-if ('serviceWorker' in navigator) {
-  let reloadingForServiceWorkerUpdate = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloadingForServiceWorkerUpdate) return;
-    reloadingForServiceWorkerUpdate = true;
-    window.location.reload();
-  });
-  navigator.serviceWorker.register('./sw.js').then((registration) => registration.update()).catch(() => {});
-}
+registerBrowserServiceWorker().catch(() => {});
 toggleMode();
 applyLanguage();
