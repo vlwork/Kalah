@@ -29,8 +29,24 @@ test('stone palette and adaptive size classes are present', () => {
   for (let tone = 0; tone < 6; tone += 1) assert.match(css, new RegExp(`seed\\.tone-${tone}`));
   for (const size of ['large', 'medium', 'small', 'compact']) assert.match(css, new RegExp(`seeds-${size}`));
   assert.match(css, /pit\.view-own/); assert.match(css, /pit\.view-opponent/);
-  assert.match(css, /\.pit \.seeds-medium\s*\{\s*grid-template-columns:\s*repeat\(3, max-content\)/);
-  assert.match(css, /\.pit \.seeds-compact\s*\{\s*grid-template-columns:\s*repeat\(6, max-content\)/);
+  assert.match(css, /\.pit \.seeds-small:has\(> \.seed:nth-child\(9\):last-child\)/);
+  assert.match(css, /\.seeds-large \.seed, \.seeds-medium \.seed, \.seeds-small \.seed, \.seeds-compact \.seed\s*\{[^}]*width:\s*var\(--seed-width\);[^}]*height:\s*var\(--seed-height\)/);
+  assert.doesNotMatch(css, /\.seed:nth-child\([^)]*\)\s*\{[^}]*scale\(/);
+});
+
+test('pit seed row capacities map counts 5 through 10 and retain a narrow legacy fallback', () => {
+  const rowCapacity = (ruleBody) => (ruleBody.match(/var\(--seed-width\)/g) ?? []).length;
+  const mediumFallbacks = [...css.matchAll(/\.pit \.seeds-medium\s*\{([^}]*)\}/g)].map((match) => rowCapacity(match[1]));
+  const mediumSevenEight = css.match(/\.pit \.seeds-medium:has\(> \.seed:nth-child\(7\):last-child\),\s*\.pit \.seeds-medium:has\(> \.seed:nth-child\(8\):last-child\)\s*\{([^}]*)\}/)?.[1] ?? '';
+  const mediumFiveSixNarrow = css.match(/\.pit \.seeds-medium:has\(> \.seed:nth-child\(5\):last-child\),\s*\.pit \.seeds-medium:has\(> \.seed:nth-child\(6\):last-child\)\s*\{([^}]*)\}/)?.[1] ?? '';
+  const smallFallback = css.match(/\.pit \.seeds-small\s*\{([^}]*)\}/)?.[1] ?? '';
+  const smallNine = css.match(/\.pit \.seeds-small:has\(> \.seed:nth-child\(9\):last-child\)\s*\{([^}]*)\}/)?.[1] ?? '';
+
+  assert.deepEqual(mediumFallbacks, [3, 4]);
+  assert.equal(rowCapacity(mediumSevenEight), 4);
+  assert.equal(rowCapacity(mediumFiveSixNarrow), 3);
+  assert.equal(rowCapacity(smallNine), 3);
+  assert.equal(rowCapacity(smallFallback), 5);
 });
 
 test('responsive shell preserves browser zoom and protects narrow safe areas', () => {
