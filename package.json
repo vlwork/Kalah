@@ -3,6 +3,14 @@
   "version": "1.0.0",
   "author": "Researcher Universe Labs",
   "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vlwork/Kalah.git"
+  },
+  "homepage": "https://github.com/vlwork/Kalah",
+  "bugs": {
+    "url": "https://github.com/vlwork/Kalah/issues"
+  },
   "private": true,
   "type": "module",
   "scripts": {
