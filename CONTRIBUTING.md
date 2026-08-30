@@ -90,6 +90,6 @@ Please keep technical discussions respectful and focused on the project.
 
 ## Security issues
 
-For potentially sensitive security issues, avoid publishing exploit details in a public Issue. A private reporting channel will be documented before the public release.
+For potentially sensitive security issues, do not publish vulnerability or exploit details in a public Issue. Please use GitHub Private Vulnerability Reporting as described in [SECURITY.md](SECURITY.md).
 
 Kalah is developed by Researcher Universe Labs and distributed under GPL-3.0-only.
