@@ -4,6 +4,8 @@
 
 A cross-platform implementation of the classic Kalah board game.
 
+[Play online](https://vlwork.github.io/Kalah/) · [Download v1.0.0](https://github.com/vlwork/Kalah/releases/tag/v1.0.0) · [Report an issue](https://github.com/vlwork/Kalah/issues)
+
 Developed by Researcher Universe Labs
 
 Version 1.0.0
@@ -14,7 +16,9 @@ License: GPL-3.0-only
 
 Kalah is a digital implementation of the classic board game from the Mancala family. It is an independent project and is not an official version of any third-party product.
 
-The project focuses on a clean implementation of the rules, local player-versus-player matches, play against AI, saved games, statistics, and cross-platform use without a mandatory online service.
+The project focuses on a clean implementation of the rules, local player-versus-player matches, play against AI, saved games, statistics, and cross-platform use without a mandatory online service. Kalah is available as a tested Windows desktop application, a public Browser/PWA version, and experimental Linux and Android builds.
+
+The source code is available in the public [GitHub repository](https://github.com/vlwork/Kalah).
 
 ## Features
 
@@ -71,17 +75,38 @@ At the end of a match, the result view reports victory, defeat, draw, or resigna
 
 | Platform | Status |
 | --- | --- |
-| Windows x64 | Supported; installer and portable executable. |
-| Android | Supported / testing; Android 7.0+ (API 24), ARM64 and ARMv7. |
-| Browser/PWA | Supported as the project frontend and local web version. |
-| Linux | Planned; build support is in progress. |
+| Browser / PWA | Supported; public version available on GitHub Pages. |
+| Windows x64 | Tested; installer and portable build available. |
+| Linux x86_64 | Experimental; AppImage available, not fully tested on physical Linux. Audio is currently unavailable in the AppImage. |
+| Android | Experimental; signed universal APK available for Android 7.0+ (API 24), not fully tested on physical devices. |
 | macOS | Planned. |
 | iOS | Not currently planned. |
+
+## Downloads
+
+Stable release: [Kalah v1.0.0](https://github.com/vlwork/Kalah/releases/tag/v1.0.0)
+
+Available release assets:
+
+- Windows x64 installer
+- Windows x64 portable ZIP
+- Linux x86_64 AppImage
+- Android signed universal APK
+
+The Linux AppImage currently has no audio. Linux and Android builds are experimental.
+
+## Play online
+
+The browser/PWA version can be played directly at:
+
+https://vlwork.github.io/Kalah/
 
 ## Current build targets
 
 - Windows: x86_64, Tauri 2, and WebView2.
-- Android: minSdk 24, ARM64 (`arm64-v8a`), and ARMv7 (`armeabi-v7a`).
+- Linux: x86_64 AppImage.
+- Android: signed universal APK for Android 7.0+ (API 24).
+- Browser: static/PWA frontend deployed through GitHub Pages.
 
 ## Technology
 
@@ -99,7 +124,7 @@ The project separates the Game Engine for rules and state from AI move selection
 
 ## Testing
 
-The current project state has 131 automated tests passing. Coverage includes game rules, AI, Save/Load, stale lifecycle protection, board orientation, statistics, audio, animations, AI resignation, the result dialog, localization, and storage.
+The current project state has 155 automated tests passing. Coverage includes game rules, AI, Save/Load, stale lifecycle protection, board orientation, statistics, audio, animations, AI resignation, the result dialog, localization, and storage.
 
 Run the test suite with:
 
@@ -119,10 +144,6 @@ npm start
 
 Detailed platform build instructions will be provided separately.
 
-## Screenshots
-
-<!-- Screenshots will be added before the public release. -->
-
 ## License
 
 Kalah is licensed under the GNU General Public License v3.0 only (GPL-3.0-only).
@@ -133,7 +154,11 @@ You may use, study, modify, and distribute the software. Distributed derivative 
 
 ## Contributions
 
-Contributions are welcome. Contribution guidelines will be added separately.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines. Contributions may also be subject to [CLA.md](CLA.md).
+
+## Security
+
+Please do not report security vulnerabilities through public Issues. See [SECURITY.md](SECURITY.md) for private vulnerability reporting instructions.
 
 ## Support the project
 
