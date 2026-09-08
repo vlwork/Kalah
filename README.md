@@ -164,6 +164,8 @@ Please do not report security vulnerabilities through public Issues. See [SECURI
 
 Kalah is free and open-source software. If you find the project useful and would like to support its continued development, voluntary donations are welcome.
 
+[Support via CloudTips](https://pay.cloudtips.ru/p/23e2873b)
+
 ## Developer
 
 Researcher Universe Labs
